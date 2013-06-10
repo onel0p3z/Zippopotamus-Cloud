@@ -22,17 +22,14 @@
 	}
 	</style>
 	
-	<script type="text/javascript">
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
 
-	  var _gaq = _gaq || [];
-	  _gaq.push(['_setAccount', 'UA-30975659-1']);
-	  _gaq.push(['_trackPageview']);
-	
-	  (function() {
-	    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-	    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-	    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-	  })();
+	  ga('create', 'UA-41612802-1', 'zippopotam.us');
+	  ga('send', 'pageview');
 
 	</script>
 	
@@ -72,13 +69,9 @@
 	<div class="container">
 
 		<br/>
-		<div class="alert alert-danger fade in">
-		<a class="close" data-dismiss="alert" >&times;</a>
-		<strong>Heads Up!</strong> To support international post code formats, we have adopted a new response format as of May-1st-2012
-		</div>
         <div class="alert alert-danger fade in">
         <a class="close" data-dismiss="alert" >&times;</a>
-        <strong>Thanks dotCloud!</strong> Thanks to dotCloud's generous policy for legacy applications, Zippopotam.us lives on!</br> Anyone looking for a great cloud platform should give them a look!
+        <strong>New Management</strong> The Zippopotam.us project is under new management. <a href="https://github.com/ekotechnology/Zippopotamus-Cloud/blob/master/README.md">View the Github Repository for details.</a>
          </div>
 
 
@@ -285,7 +278,7 @@ client.send();
 		<hr>
 
 		<footer>
-			<center> <p>&copy; Zippopotamus 2012 | Samir Ahmed | Jeff Crowell </p> </center>
+			<center> <p>&copy; Zippopotam.us Project 2013</p> </center>
 		</footer>
 
 	</div> <!-- /container -->

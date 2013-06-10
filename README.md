@@ -2,24 +2,25 @@
 
 ---
 
-## API SHUTTING DOWN (JUNE 30th 2013)
+## New Management
 
-Our full crowd-source zip-db can be found 
-[here](https://mega.co.nz/#!jkRwHZLB!ZTEy5QI8zg7KZd32y6RD-kY5njJFptb67at7AdZtBS4)
+Zippopotam.us has been taken over and re-launched.
 
-For alternatives you can use [Ziptastic](http://daspecster.github.io/ziptastic)
+For now, the primary concern was getting it back up on stable hosting.
 
-We apologize for the inconvenience, but we had been over time our priorities have changed and we can no long offer the service.
+I look forward to adding some features including caching and variable nearby query distances, etc in the near future.
+
+I'm very grateful to Samir and Jeff for cooperating in this transition, and their original work for this project.
+
+Please dont hesitate to contact me with any questions, comments, or concerns.  You can file an issue on this repository, or you may email me at [trea@treahauet.com](mailto:trea@treahauet.com).
 
 Thanks,
 
-Jeff & Samir
+[Trea Hauet](http://treahauet.com)
 
 ---
 
 This is a repository for  [Zippopotamus](http://www.zippopotam.us) the global postal code API
-
-Zippopotamus is hosted by [dotCloud](http://dotCloud.com). This repo is used to build and maintain the site.
 
 If you want to contribute to the improving the site, back-end, front-end etc. Just fork away and submit pull requests. 
 
@@ -35,7 +36,7 @@ On May 1st Zippopotamus changed their JSON response format to work better with i
 
 ## Postal Code Information
 
-For information our postal codes and countries supported, you should check out the [zippopotamus crowd-sourcing project](https://github.com/crowell/zippopotamus).  Here you can download the entire database dump, or fork and add changes that we will incorporate into our DB.
+For now, I'm looking at the best possible way to collaborate on any additional postal code information.  Information coming soon.
 
 ## Technical Information
 
@@ -45,11 +46,8 @@ At the moment the zippopotamus is built on Python, MongoDB and bottle.py framewo
 
 ### Local Testing?
 
-The site is configured to run on dotCloud, if you want to test out the web interfaceyou can change the wsgi.py file to include the last commented line, which is used to run the site on your local host.
+The site is configured to run on Apache mod_wsgi, if you want to test out the web interface you can change the wsgi.py file to include the last commented line, which is used to run the site on your local host.
 
 ### Suggestions and Comments?
 
-Hate it? Love it? Open an issue if you have a problem or contact
-[Jeff Crowell](http://twitter.com/jeffreycrowell) or [Samir Ahmed](http://twitter.com/samirahmed) 
-
-Also, we aren't bottle or python or mongo experts. So if you see a way that we can improve, please let us know. Additionally, if you have examples (translation corrects etc) of using Zippopotamus that you want to share let us know and we can feature your site / blog on the homepage.
+Open an issue if you have any questions, comments, or concerns.
