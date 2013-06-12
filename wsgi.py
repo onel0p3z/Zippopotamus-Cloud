@@ -139,11 +139,11 @@ def nearby_query(lat, lon):
     GeoSpatial  Query,
     Given a specific latitude or longitude, this returns the closes 11 zipcodes
     '''
-    cKey = 'nearby.' + lat + '.' + lon
+    cKey = 'nearby.' + str(lat) + '.' + str(lon)
 
     if r.get(cKey):
             nearby = pickle.loads(r.get(cKey))
-            stat_count(len(nearby['ok'] > 0), True)
+            stat_count((nearby['ok'] > 0), True)
     else:
         nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
                                 ('near', [lon, lat]),            # near given coordinates
@@ -151,11 +151,16 @@ def nearby_query(lat, lon):
                                 ('spherical', True),              # Spherical
                                 ('num', 11)]))                  # Results to return
         try:
+            for places in nearby['results']:
+                    try:
+                        del places['_id']
+                    except:
+                        pass
             r.set(cKey, pickle.dumps(nearby))
         except:
             pass
 
-        stat_count((len(nearby['ok']) > 0), False)
+        stat_count((nearby['ok'] > 0), False)
 
     if nearby['ok'] > 0:
         results = list()
@@ -163,7 +168,10 @@ def nearby_query(lat, lon):
             places = records['obj']
             places['distance'] = records['dis']
             del places['loc']                       # Remove Coordinate info
-            del places['_id']                       # Remove mongo_id
+            try:
+                del places['_id']                       # Remove mongo_id
+            except:
+                pass
             del places['latitude']                  # Remove string latitude
             del places['longitude']                 # Remove string long
             del places['country']                   # Remove country
@@ -189,11 +197,16 @@ def standard_query(country, code):
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'post code': code.upper()}))
         try:
+            for places in result:
+                try:
+                    del places['_id']
+                except:
+                    pass
             r.set(cKey, pickle.dumps(result))
         except:
             pass
 
-        stat_count((len(result) > 0), False)
+    stat_count((len(result) > 0), False)
 
     if len(result) < 1:
         content = json.dumps({})        # return empty json string
@@ -206,7 +219,10 @@ def standard_query(country, code):
         isFound = True                                      # if Match found
 
         for places in result:                                # Remove from each result
-            del places['_id']                                # mongo id
+            try:
+                del places['_id']                                # mongo id
+            except:
+                pass
             del places['post code']                          # post code
             del places['country']                            # country
             del places['country abbreviation']               # country abbrev. information
@@ -227,13 +243,19 @@ def place_query(country, state, place):
     cKey = "place." + country.upper() + '.' + state.upper() + '.' + place.upper()
 
     if (r.get(cKey)):
-        result = r.get(cKey)
+        result = pickle.loads(r.get(cKey))
         stat_count((len(result) > 0), True)
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'state abbreviation': state.upper(),
                                          'place name': {'$regex': place, '$options': '-i'}
                                          }))
+        for places in result:
+                try:
+                    del places['_id']
+                except:
+                    pass
+        r.set(cKey, pickle.dumps(result))
         stat_count((len(result) > 0), False)
 
     if len(result) < 1:
@@ -248,7 +270,10 @@ def place_query(country, state, place):
         place = result[0]['place name']
         isFound = True
         for places in result:                           # Remove from each result
-            del places['_id']                           # Mongo ID
+            try:
+                del places['_id']                           # Mongo ID
+            except:
+                pass
             del places['state']                         # State
             del places['state abbreviation']            # State abbreviation
             del places['country']                       # Country
