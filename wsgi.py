@@ -1,12 +1,15 @@
-from bottle import route, default_app, static_file, view, response, run
+from bottle import route, default_app, static_file, view, response, run, request
 from pymongo import Connection
 from pymongo.database import Database
 from bson.son import SON
 import json
 import os
+import redis
+import pickle
 
 os.chdir(os.path.dirname(__file__))
 
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 class static_files():
 
@@ -79,9 +82,14 @@ def nearby_zip(country, code):
     Looks up nearby postcodes given country and postal code
     Returns results for JSON response
     '''
-    post = list(db['nearby'].find({'post code': code.upper(),
-                                   'country abbreviation': country.upper()}))
+    cKey = 'nearby.' + country.upper() + '.' + code
 
+    if (r.get(cKey)):
+        stat_count(True, True)
+        return (True, r.get(cKey))
+    else:
+        post = list(db['nearby'].find({'post code': code.upper(),
+                                       'country abbreviation': country.upper()}))
     if len(post) >= 1:
         lon = float(post[0]['longitude'])
         lat = float(post[0]['latitude'])
@@ -92,30 +100,13 @@ def nearby_zip(country, code):
                         'near longitude': lon,      # Record the query lat
                         'nearby': nearby[1:]}
             content = json.dumps(response)
+            stat_count(True, False)
+            r.set(cKey, content)
             return (True, content)
 
     content = json.dumps({})
-    isFound = False
-    return (isFound, content)
-
-
-def nearby_coordinates(lat, lon):
-    '''
-    Looks up nearby postcodes given a latitude or longitude
-    Returns results formatted for Json Result
-    '''
-
-    (isFound, nearby) = nearby_query(float(lon), float(lat))
-    if isFound:
-        results = {'near latitude': lat,          # Record the query lat.
-                   'near longitude': lon,         # Record the query lon.
-                   'nearby': nearby[:10]}
-        content = json.dumps(results)
-        return (True, content)
-
-    else:
-        content = json.dumps({})
-        return (False, content)
+    stat_count(False)
+    return (False, content)
 
 
 def nearby_query(lat, lon):
@@ -123,28 +114,39 @@ def nearby_query(lat, lon):
     GeoSpatial  Query,
     Given a specific latitude or longitude, this returns the closes 11 zipcodes
     '''
+    cKey = 'nearby.' + str(lat) + '.' + str(lon)
 
-    nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
-                            ('near', [lon, lat]),            # near given coordinates
-                            ('distanceMultiplier', 3959),   # Return values in miles
-                            ('spherical', True),              # Spherical
-                            ('num', 11)]))                  # Results to return
+    if r.get(cKey):
+            stat_count(True, True)
+            return (True, pickle.loads(r.get(cKey)))
+    else:
+        nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
+                                ('near', [lon, lat]),            # near given coordinates
+                                ('distanceMultiplier', 3959),   # Return values in miles
+                                ('spherical', True),              # Spherical
+                                ('num', 11)]))                  # Results to return
+
     if nearby['ok'] > 0:
         results = list()
         for records in nearby['results']:
             places = records['obj']
             places['distance'] = records['dis']
             del places['loc']                       # Remove Coordinate info
-            del places['_id']                       # Remove mongo_id
+            try:
+                del places['_id']                       # Remove mongo_id
+            except:
+                pass
             del places['latitude']                  # Remove string latitude
             del places['longitude']                 # Remove string long
             del places['country']                   # Remove country
             del places['country abbreviation']      # Remove abbrevation
             results.append(places)
+            r.set(cKey, pickle.dumps(results))
+            stat_count(True, False)
         return (True, results)
     else:
-        isFound = False
-        return (isFound, content)
+        stat_count(False)
+        return (False, "")
 
 
 def standard_query(country, code):
@@ -152,12 +154,19 @@ def standard_query(country, code):
     Standard_query returns a JSON data if there are matching places, for a
     given country abbreviation and zip code
     '''
-    result = list(db['global'].find({'country abbreviation': country.upper(),
-                                     'post code': code.upper()}))
+    cKey = 'standard.' + country.upper() + '.' + code
+
+    if r.get(cKey):
+        stat_count(True, True)
+        return (True, r.get(cKey))
+    else:
+        result = list(db['global'].find({'country abbreviation': country.upper(),
+                                         'post code': code.upper()}))
+
     if len(result) < 1:
         content = json.dumps({})        # return empty json string
-        isFound = False                # If no results found
-        return (isFound, content)
+        stat_count(False)
+        return (False, content)
     else:
         country_name = result[0]['country']                    # Capture country
         country_abbv = result[0]['country abbreviation']       # Country abbrev.
@@ -165,7 +174,10 @@ def standard_query(country, code):
         isFound = True                                      # if Match found
 
         for places in result:                                # Remove from each result
-            del places['_id']                                # mongo id
+            try:
+                del places['_id']                                # mongo id
+            except:
+                pass
             del places['post code']                          # post code
             del places['country']                            # country
             del places['country abbreviation']               # country abbrev. information
@@ -174,7 +186,8 @@ def standard_query(country, code):
                               'country abbreviation': country_abbv,
                               'post code': post_code,
                               'places': result})                 # Using pymongo json settings
-
+        r.set(cKey, content)
+        stat_count(True, False)
         return (isFound, content)    # Return True and JSON results
 
 
@@ -183,14 +196,21 @@ def place_query(country, state, place):
     Place_query returns JSON data if there are matching postcodes for a given
     country abbreviation, state abbreviation, and place/city
     '''
-    result = list(db['global'].find({'country abbreviation': country.upper(),
-                                     'state abbreviation': state.upper(),
-                                     'place name': {'$regex': place, '$options': '-i'}
-                                     }))
+    cKey = "place." + country.upper() + '.' + state.upper() + '.' + place.upper()
+
+    if (r.get(cKey)):
+        stat_count(True, True)
+        return (True, r.get(cKey))
+    else:
+        result = list(db['global'].find({'country abbreviation': country.upper(),
+                                         'state abbreviation': state.upper(),
+                                         'place name': {'$regex': place, '$options': '-i'}
+                                         }))
+
     if len(result) < 1:
         content = json.dumps({})   # Empty JSON string
-        isFound = False             # We didn't find anything
-        return (isFound, content)
+        stat_count(False)
+        return (False, content)
     else:
         country_name = result[0]['country']
         country_abbv = result[0]['country abbreviation']
@@ -199,7 +219,10 @@ def place_query(country, state, place):
         place = result[0]['place name']
         isFound = True
         for places in result:                           # Remove from each result
-            del places['_id']                           # Mongo ID
+            try:
+                del places['_id']                           # Mongo ID
+            except:
+                pass
             del places['state']                         # State
             del places['state abbreviation']            # State abbreviation
             del places['country']                       # Country
@@ -212,8 +235,31 @@ def place_query(country, state, place):
             'state abbreviation': state_abbv,
             'place name': place,
             'places': result})
-
+        stat_count(True, False)
+        r.set(cKey, content)
         return (isFound, content)   # Return True and JSON results
+
+
+def stat_count(found, cacheHit=None):
+    '''
+    Add to Redis request counter, overall request numbers
+    as well as unique IP requests, and AJAX vs. other
+    '''
+    r.incr('request.count')
+    r.hincrby('request.hosts', request.remote_addr, 1)
+
+    if (request.is_xhr):
+        r.incr('request.xhr')
+
+    if (not found):
+        r.incr('request.notFound')
+    else:
+        if (cacheHit):
+            r.incr('request.cacheHit')
+            response['X-CACHE'] = 'hit'
+        else:
+            r.incr('request.cacheMiss')
+            response['X-CACHE'] = 'miss'
 
 # PRESENT GLOBAL
 ZIP = 'zip'
