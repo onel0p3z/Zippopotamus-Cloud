@@ -85,10 +85,10 @@ def nearby_zip(country, code):
     cKey = 'nearby.' + country.upper() + '.' + code
 
     if (r.get(cKey)):
-        content = pickle.loads(r.get(cKey))
-        stat_count(request['isFound'], True)
-        return (content['isFound'], content['content'])
+        post = pickle.loads(r.get(cKey))
+        cacheHit = True
     else:
+        cacheHit = False
         post = list(db['nearby'].find({'post code': code.upper(),
                                        'country abbreviation': country.upper()}))
 
@@ -102,12 +102,13 @@ def nearby_zip(country, code):
                         'near longitude': lon,      # Record the query lat
                         'nearby': nearby[1:]}
             content = json.dumps(response)
-            r.set(cKey, pickle.dumps({'isFound': True, 'content': post}))
-            return (True, {'isFound': True, 'content': content})
+            r.set(cKey, pickle.dumps(content))
+            stat_count(True, cacheHit)
+            return (True, content)
 
     content = json.dumps({})
     isFound = False
-    stat_count(isFound)
+    stat_count(False)
     return (isFound, content)
 
 
@@ -120,14 +121,14 @@ def nearby_query(lat, lon):
 
     if r.get(cKey):
             nearby = pickle.loads(r.get(cKey))
-            stat_count(nearby['isFound'], True)
-            return (nearby['isFound'], nearby['content'])
+            cacheHit = True
     else:
         nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
                                 ('near', [lon, lat]),            # near given coordinates
                                 ('distanceMultiplier', 3959),   # Return values in miles
                                 ('spherical', True),              # Spherical
                                 ('num', 11)]))                  # Results to return
+        cacheHit = False
 
     if nearby['ok'] > 0:
         results = list()
@@ -144,13 +145,13 @@ def nearby_query(lat, lon):
             del places['country']                   # Remove country
             del places['country abbreviation']      # Remove abbrevation
             results.append(places)
-        r.set(cKey, pickle.dumps({'isFound': True, 'content': nearby}))
-        stat_count(True, False)
+        if (cacheHit is not True):
+            r.set(cKey, pickle.dumps(results))
+        stat_count(True, cacheHit)
         return (True, results)
     else:
         isFound = False
-        stat_count(isFound)
-        return (isFound, "")
+        return (isFound, content)
 
 
 def standard_query(country, code):
@@ -162,9 +163,9 @@ def standard_query(country, code):
 
     if r.get(cKey):
         result = pickle.loads(r.get(cKey))
-        stat_count(result['isFound'], True)
-        return (result['isFound'], result['content'])
+        cacheHit = True
     else:
+        cacheHit = False
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'post code': code.upper()}))
 
@@ -192,7 +193,8 @@ def standard_query(country, code):
                               'country abbreviation': country_abbv,
                               'post code': post_code,
                               'places': result})                 # Using pymongo json settings
-        stat_count(isFound, {'isFound': True, 'content': content})
+        if (cacheHit is not True):
+            r.set(cKey, pickle.dumps(content))
         return (isFound, content)    # Return True and JSON results
 
 
@@ -205,17 +207,17 @@ def place_query(country, state, place):
 
     if (r.get(cKey)):
         result = pickle.loads(r.get(cKey))
-        stat_count(result['isFound'], True)
-        return (result['isFound'], result['content'])
+        cacheHit = True
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'state abbreviation': state.upper(),
                                          'place name': {'$regex': place, '$options': '-i'}
                                          }))
+        cacheHit = False
 
     if len(result) < 1:
         content = json.dumps({})   # Empty JSON string
-        isFound = False            # We didn't find anything
+        isFound = False             # We didn't find anything
         stat_count(False)
         return (isFound, content)
     else:
@@ -243,12 +245,13 @@ def place_query(country, state, place):
             'place name': place,
             'places': result})
 
-        r.set(cKey, pickle.dumps({'isFound': True, 'content': result}))
-        stat_count(True, False)
+        stat_count(isFound, cacheHit)
+        if (cacheHit is not True):
+            r.set(cKey, pickle.dumps(content))
         return (isFound, content)   # Return True and JSON results
 
 
-def stat_count(found, cacheHit=None):
+def stat_count(found, cacheHit):
     '''
     Add to Redis request counter, overall request numbers
     as well as unique IP requests, and AJAX vs. other
@@ -262,13 +265,12 @@ def stat_count(found, cacheHit=None):
     if (not found):
         r.incr('request.notFound')
 
-    if (cacheHit is not None):
-        if (cacheHit):
-            r.incr('request.cacheHit')
-            response['X-CACHE'] = 'hit'
-        else:
-            r.incr('request.cacheMiss')
-            response['X-CACHE'] = 'miss'
+    if (cacheHit):
+        r.incr('request.cacheHit')
+        response['X-CACHE'] = 'hit'
+    else:
+        r.incr('request.cacheMiss')
+        response['X-CACHE'] = 'miss'
 
 # PRESENT GLOBAL
 ZIP = 'zip'
