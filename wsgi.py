@@ -86,8 +86,8 @@ def nearby_zip(country, code):
 
     if (r.get(cKey)):
         content = pickle.loads(r.get(cKey))
-        stat_count(request.isFound, True)
-        return (content.isFound, content.content)
+        stat_count(request['isFound'], True)
+        return (content['isFound'], content['content'])
     else:
         post = list(db['nearby'].find({'post code': code.upper(),
                                        'country abbreviation': country.upper()}))
@@ -120,8 +120,8 @@ def nearby_query(lat, lon):
 
     if r.get(cKey):
             nearby = pickle.loads(r.get(cKey))
-            stat_count(nearby.isFound, True)
-            return (nearby.isFound, nearby.content)
+            stat_count(nearby['isFound'], True)
+            return (nearby['isFound'], nearby['content'])
     else:
         nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
                                 ('near', [lon, lat]),            # near given coordinates
@@ -162,8 +162,8 @@ def standard_query(country, code):
 
     if r.get(cKey):
         result = pickle.loads(r.get(cKey))
-        stat_count(result.isFound, True)
-        return (result.isFound, result.content)
+        stat_count(result['isFound'], True)
+        return (result['isFound'], result['content'])
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'post code': code.upper()}))
@@ -205,8 +205,8 @@ def place_query(country, state, place):
 
     if (r.get(cKey)):
         result = pickle.loads(r.get(cKey))
-        stat_count(result.isFound, True)
-        return (result.isFound, result.content)
+        stat_count(result['isFound'], True)
+        return (result['isFound'], result['content'])
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'state abbreviation': state.upper(),
