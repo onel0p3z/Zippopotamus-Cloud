@@ -86,15 +86,16 @@ def nearby_zip(country, code):
 
     if (r.get(cKey)):
         post = pickle.loads(r.get(cKey))
-        stat_count(True, True)
+        stat_count((len(post) > 1), True)
     else:
         post = list(db['nearby'].find({'post code': code.upper(),
                                        'country abbreviation': country.upper()}))
-        try:
-            r.set(cKey, pickle.dumps(post))
-        except:
-            pass
-
+        for places in post:
+            try:
+                del places['_id']
+            except:
+                pass
+        r.set(cKey, pickle.dumps(post))
         found = (len(post) >= 1)
         stat_count(found, False)
 
@@ -150,16 +151,12 @@ def nearby_query(lat, lon):
                                 ('distanceMultiplier', 3959),   # Return values in miles
                                 ('spherical', True),              # Spherical
                                 ('num', 11)]))                  # Results to return
-        try:
-            for places in nearby['results']:
-                    try:
-                        del places['_id']
-                    except:
-                        pass
-            r.set(cKey, pickle.dumps(nearby))
-        except:
-            pass
-
+        for places in nearby['results']:
+            try:
+                del places['_id']
+            except:
+                pass
+        r.set(cKey, pickle.dumps(nearby))
         stat_count((nearby['ok'] > 0), False)
 
     if nearby['ok'] > 0:
@@ -196,17 +193,13 @@ def standard_query(country, code):
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'post code': code.upper()}))
-        try:
-            for places in result:
-                try:
-                    del places['_id']
-                except:
-                    pass
-            r.set(cKey, pickle.dumps(result))
-        except:
-            pass
-
-    stat_count((len(result) > 0), False)
+        for places in result:
+            try:
+                del places['_id']
+            except:
+                pass
+        r.set(cKey, pickle.dumps(result))
+        stat_count((len(result) > 0), False)
 
     if len(result) < 1:
         content = json.dumps({})        # return empty json string
