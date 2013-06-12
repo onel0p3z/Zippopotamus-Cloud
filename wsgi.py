@@ -240,7 +240,7 @@ def place_query(country, state, place):
         return (isFound, content)   # Return True and JSON results
 
 
-def stat_count(found, cacheHit):
+def stat_count(found, cacheHit=None):
     '''
     Add to Redis request counter, overall request numbers
     as well as unique IP requests, and AJAX vs. other
@@ -253,13 +253,13 @@ def stat_count(found, cacheHit):
 
     if (not found):
         r.incr('request.notFound')
-
-    if (cacheHit):
-        r.incr('request.cacheHit')
-        response['X-CACHE'] = 'hit'
     else:
-        r.incr('request.cacheMiss')
-        response['X-CACHE'] = 'miss'
+        if (cacheHit):
+            r.incr('request.cacheHit')
+            response['X-CACHE'] = 'hit'
+        else:
+            r.incr('request.cacheMiss')
+            response['X-CACHE'] = 'miss'
 
 # PRESENT GLOBAL
 ZIP = 'zip'
