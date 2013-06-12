@@ -85,13 +85,11 @@ def nearby_zip(country, code):
     cKey = 'nearby.' + country.upper() + '.' + code
 
     if (r.get(cKey)):
-        post = pickle.loads(r.get(cKey))
-        cacheHit = True
+        stat_count(True, True)
+        return (True, pickle.loads(r.get(cKey)))
     else:
-        cacheHit = False
         post = list(db['nearby'].find({'post code': code.upper(),
                                        'country abbreviation': country.upper()}))
-
     if len(post) >= 1:
         lon = float(post[0]['longitude'])
         lat = float(post[0]['latitude'])
@@ -102,14 +100,13 @@ def nearby_zip(country, code):
                         'near longitude': lon,      # Record the query lat
                         'nearby': nearby[1:]}
             content = json.dumps(response)
-            r.set(cKey, pickle.dumps(content))
-            stat_count(True, cacheHit)
+            stat_count(True, False)
+            r.set(cKey, response)
             return (True, content)
 
     content = json.dumps({})
-    isFound = False
     stat_count(False)
-    return (isFound, content)
+    return (False, content)
 
 
 def nearby_query(lat, lon):
@@ -120,15 +117,14 @@ def nearby_query(lat, lon):
     cKey = 'nearby.' + str(lat) + '.' + str(lon)
 
     if r.get(cKey):
-            nearby = pickle.loads(r.get(cKey))
-            cacheHit = True
+            stat_count(True, True)
+            return (True, pickle.loads(r.get(cKey)))
     else:
         nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
                                 ('near', [lon, lat]),            # near given coordinates
                                 ('distanceMultiplier', 3959),   # Return values in miles
                                 ('spherical', True),              # Spherical
                                 ('num', 11)]))                  # Results to return
-        cacheHit = False
 
     if nearby['ok'] > 0:
         results = list()
@@ -145,13 +141,12 @@ def nearby_query(lat, lon):
             del places['country']                   # Remove country
             del places['country abbreviation']      # Remove abbrevation
             results.append(places)
-        if (cacheHit is not True):
-            r.set(cKey, pickle.dumps(results))
-        stat_count(True, cacheHit)
+            r.set(cKey, results)
+            stat_count(True, False)
         return (True, results)
     else:
-        isFound = False
-        return (isFound, content)
+        stat_count(False)
+        return (False, "")
 
 
 def standard_query(country, code):
@@ -162,18 +157,16 @@ def standard_query(country, code):
     cKey = 'standard.' + country.upper() + '.' + code
 
     if r.get(cKey):
-        result = pickle.loads(r.get(cKey))
-        cacheHit = True
+        stat_count(True, True)
+        return (True, pickle.loads(r.get(cKey)))
     else:
-        cacheHit = False
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'post code': code.upper()}))
 
     if len(result) < 1:
         content = json.dumps({})        # return empty json string
-        isFound = False                # If no results found
         stat_count(False)
-        return (isFound, content)
+        return (False, content)
     else:
         country_name = result[0]['country']                    # Capture country
         country_abbv = result[0]['country abbreviation']       # Country abbrev.
@@ -193,8 +186,8 @@ def standard_query(country, code):
                               'country abbreviation': country_abbv,
                               'post code': post_code,
                               'places': result})                 # Using pymongo json settings
-        if (cacheHit is not True):
-            r.set(cKey, pickle.dumps(content))
+        r.set(cKey, content)
+        stat_count(True, False)
         return (isFound, content)    # Return True and JSON results
 
 
@@ -206,20 +199,18 @@ def place_query(country, state, place):
     cKey = "place." + country.upper() + '.' + state.upper() + '.' + place.upper()
 
     if (r.get(cKey)):
-        result = pickle.loads(r.get(cKey))
-        cacheHit = True
+        stat_count(True, True)
+        return (True, pickle.loads(r.get(cKey)))
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'state abbreviation': state.upper(),
                                          'place name': {'$regex': place, '$options': '-i'}
                                          }))
-        cacheHit = False
 
     if len(result) < 1:
         content = json.dumps({})   # Empty JSON string
-        isFound = False             # We didn't find anything
         stat_count(False)
-        return (isFound, content)
+        return (False, content)
     else:
         country_name = result[0]['country']
         country_abbv = result[0]['country abbreviation']
@@ -244,10 +235,8 @@ def place_query(country, state, place):
             'state abbreviation': state_abbv,
             'place name': place,
             'places': result})
-
-        stat_count(isFound, cacheHit)
-        if (cacheHit is not True):
-            r.set(cKey, pickle.dumps(content))
+        stat_count(True, False)
+        r.set(cKey, content)
         return (isFound, content)   # Return True and JSON results
 
 
