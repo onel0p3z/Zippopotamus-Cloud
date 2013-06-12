@@ -36,10 +36,6 @@ class index():
     def homepage():
         return {}
 
-#    @route('/:country', method='GET')
-#    def index(country):
-#        return '<b>%s listing</b>' % (country)
-
     @route('/:country/:post', method='GET')
     def index(country, post):
         (isFound, results) = standard_query(country, post)
