@@ -246,7 +246,7 @@ def stat_count(found, cacheHit=None):
     as well as unique IP requests, and AJAX vs. other
     '''
     r.incr('request.count')
-    r.hincrby('request.hosts', request.remote_addr, 1)
+    r.hincrby('request.hosts', request.remote_addr.replace('.', '-'), 1)
 
     if (request.is_xhr):
         r.incr('request.xhr')
