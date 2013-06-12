@@ -1,4 +1,3 @@
-
 from pymongo import Connection
 from pymongo.database import Database
 import redis
