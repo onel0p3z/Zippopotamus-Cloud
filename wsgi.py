@@ -295,10 +295,9 @@ def stat_count(found, cacheHit):
     '''
     r.incr('request.count')
     r.hincrby('request.hosts', request.remote_addr, 1)
-    # r.incr('request.' + request.remote_addr)
 
     if (request.is_xhr):
-        r.incr('request.ajax')
+        r.incr('request.xhr')
 
     if (not found):
         r.incr('request.notFound')
