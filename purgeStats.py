@@ -12,7 +12,7 @@ r = redis.StrictRedis(host='localhost', port=6379, db=0)
 dateTime = datetime.datetime.now()
 
 hosts = r.hgetall('request.hosts')
-hostsCount = r.hlen('reqest.hosts')
+hostsCount = r.hlen('request.hosts')
 requests = r.get('request.count')
 xhrRequests = r.get('request.xhr')
 cacheHits = r.get('request.cacheHit')

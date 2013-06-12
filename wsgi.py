@@ -85,19 +85,12 @@ def nearby_zip(country, code):
     cKey = 'nearby.' + country.upper() + '.' + code
 
     if (r.get(cKey)):
-        post = pickle.loads(r.get(cKey))
-        stat_count((len(post) > 1), True)
+        content = pickle.loads(r.get(cKey))
+        stat_count(request.isFound, True)
+        return (content.isFound, content.content)
     else:
         post = list(db['nearby'].find({'post code': code.upper(),
                                        'country abbreviation': country.upper()}))
-        for places in post:
-            try:
-                del places['_id']
-            except:
-                pass
-        r.set(cKey, pickle.dumps(post))
-        found = (len(post) >= 1)
-        stat_count(found, False)
 
     if len(post) >= 1:
         lon = float(post[0]['longitude'])
@@ -109,30 +102,13 @@ def nearby_zip(country, code):
                         'near longitude': lon,      # Record the query lat
                         'nearby': nearby[1:]}
             content = json.dumps(response)
-            return (True, content)
+            r.set(cKey, pickle.dumps({'isFound': True, 'content': post}))
+            return (True, {'isFound': True, 'content': content})
 
     content = json.dumps({})
     isFound = False
+    stat_count(isFound)
     return (isFound, content)
-
-
-def nearby_coordinates(lat, lon):
-    '''
-    Looks up nearby postcodes given a latitude or longitude
-    Returns results formatted for Json Result
-    '''
-
-    (isFound, nearby) = nearby_query(float(lon), float(lat))
-    if isFound:
-        results = {'near latitude': lat,          # Record the query lat.
-                   'near longitude': lon,         # Record the query lon.
-                   'nearby': nearby[:10]}
-        content = json.dumps(results)
-        return (True, content)
-
-    else:
-        content = json.dumps({})
-        return (False, content)
 
 
 def nearby_query(lat, lon):
@@ -144,25 +120,14 @@ def nearby_query(lat, lon):
 
     if r.get(cKey):
             nearby = pickle.loads(r.get(cKey))
-            stat_count((nearby['ok'] > 0), True)
+            stat_count(nearby.isFound, True)
+            return (nearby.isFound, nearby.content)
     else:
         nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
                                 ('near', [lon, lat]),            # near given coordinates
                                 ('distanceMultiplier', 3959),   # Return values in miles
                                 ('spherical', True),              # Spherical
                                 ('num', 11)]))                  # Results to return
-        try:
-            del nearby['_id']
-        except:
-            pass
-        for record in nearby['results']:
-            places = record['obj']
-            try:
-                del places['_id']
-            except:
-                pass
-        r.set(cKey, pickle.dumps(nearby))
-        stat_count((nearby['ok'] > 0), False)
 
     if nearby['ok'] > 0:
         results = list()
@@ -179,10 +144,13 @@ def nearby_query(lat, lon):
             del places['country']                   # Remove country
             del places['country abbreviation']      # Remove abbrevation
             results.append(places)
+        r.set(cKey, pickle.dumps({'isFound': True, 'content': nearby}))
+        stat_count(True, False)
         return (True, results)
     else:
         isFound = False
-        return (isFound, content)
+        stat_count(isFound)
+        return (isFound, "")
 
 
 def standard_query(country, code):
@@ -194,21 +162,16 @@ def standard_query(country, code):
 
     if r.get(cKey):
         result = pickle.loads(r.get(cKey))
-        stat_count((len(result) > 0), True)
+        stat_count(result.isFound, True)
+        return (result.isFound, result.content)
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'post code': code.upper()}))
-        for places in result:
-            try:
-                del places['_id']
-            except:
-                pass
-        r.set(cKey, pickle.dumps(result))
-        stat_count((len(result) > 0), False)
 
     if len(result) < 1:
         content = json.dumps({})        # return empty json string
         isFound = False                # If no results found
+        stat_count(False)
         return (isFound, content)
     else:
         country_name = result[0]['country']                    # Capture country
@@ -229,7 +192,7 @@ def standard_query(country, code):
                               'country abbreviation': country_abbv,
                               'post code': post_code,
                               'places': result})                 # Using pymongo json settings
-
+        stat_count(isFound, {'isFound': True, 'content': content})
         return (isFound, content)    # Return True and JSON results
 
 
@@ -242,23 +205,18 @@ def place_query(country, state, place):
 
     if (r.get(cKey)):
         result = pickle.loads(r.get(cKey))
-        stat_count((len(result) > 0), True)
+        stat_count(result.isFound, True)
+        return (result.isFound, result.content)
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'state abbreviation': state.upper(),
                                          'place name': {'$regex': place, '$options': '-i'}
                                          }))
-        for places in result:
-                try:
-                    del places['_id']
-                except:
-                    pass
-        r.set(cKey, pickle.dumps(result))
-        stat_count((len(result) > 0), False)
 
     if len(result) < 1:
         content = json.dumps({})   # Empty JSON string
-        isFound = False             # We didn't find anything
+        isFound = False            # We didn't find anything
+        stat_count(False)
         return (isFound, content)
     else:
         country_name = result[0]['country']
@@ -285,10 +243,12 @@ def place_query(country, state, place):
             'place name': place,
             'places': result})
 
+        r.set(cKey, pickle.dumps({'isFound': True, 'content': result}))
+        stat_count(True, False)
         return (isFound, content)   # Return True and JSON results
 
 
-def stat_count(found, cacheHit):
+def stat_count(found, cacheHit=None):
     '''
     Add to Redis request counter, overall request numbers
     as well as unique IP requests, and AJAX vs. other
@@ -302,12 +262,13 @@ def stat_count(found, cacheHit):
     if (not found):
         r.incr('request.notFound')
 
-    if (cacheHit):
-        r.incr('request.cacheHit')
-        response['X-CACHE'] = 'hit'
-    else:
-        r.incr('request.cacheMiss')
-        response['X-CACHE'] = 'miss'
+    if (cacheHit is not None):
+        if (cacheHit):
+            r.incr('request.cacheHit')
+            response['X-CACHE'] = 'hit'
+        else:
+            r.incr('request.cacheMiss')
+            response['X-CACHE'] = 'miss'
 
 # PRESENT GLOBAL
 ZIP = 'zip'
