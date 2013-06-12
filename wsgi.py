@@ -1,12 +1,14 @@
-from bottle import route, default_app, static_file, view, response, run
+from bottle import route, default_app, static_file, view, response, run, request
 from pymongo import Connection
 from pymongo.database import Database
 from bson.son import SON
 import json
 import os
+import redis
 
 os.chdir(os.path.dirname(__file__))
 
+r = redis.strictRedis(host='localhost', port=6379, db=0)
 
 class static_files():
 
@@ -79,8 +81,17 @@ def nearby_zip(country, code):
     Looks up nearby postcodes given country and postal code
     Returns results for JSON response
     '''
-    post = list(db['nearby'].find({'post code': code.upper(),
-                                   'country abbreviation': country.upper()}))
+    cKey = 'nearby-' + country + '-' + code
+
+    if (r.get(cKey)):
+        post = r.get(cKey)
+        stat_count(True, True)
+    else:
+        post = list(db['nearby'].find({'post code': code.upper(),
+                                       'country abbreviation': country.upper()}))
+        r.set(cKey, post)
+        found = (len(post) >= 1)
+        stat_count(found, False)
 
     if len(post) >= 1:
         lon = float(post[0]['longitude'])
@@ -123,12 +134,19 @@ def nearby_query(lat, lon):
     GeoSpatial  Query,
     Given a specific latitude or longitude, this returns the closes 11 zipcodes
     '''
+    cKey = 'nearby-' + lat + '-' + lon
 
-    nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
-                            ('near', [lon, lat]),            # near given coordinates
-                            ('distanceMultiplier', 3959),   # Return values in miles
-                            ('spherical', True),              # Spherical
-                            ('num', 11)]))                  # Results to return
+    if r.get(cKey):
+            nearby = r.get(cKey)
+            stat_count(len(nearby['ok'] > 0), True)
+    else:
+        nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
+                                ('near', [lon, lat]),            # near given coordinates
+                                ('distanceMultiplier', 3959),   # Return values in miles
+                                ('spherical', True),              # Spherical
+                                ('num', 11)]))                  # Results to return
+        stat_count((len(nearby['ok']) > 0), False)
+
     if nearby['ok'] > 0:
         results = list()
         for records in nearby['results']:
@@ -152,8 +170,17 @@ def standard_query(country, code):
     Standard_query returns a JSON data if there are matching places, for a
     given country abbreviation and zip code
     '''
-    result = list(db['global'].find({'country abbreviation': country.upper(),
-                                     'post code': code.upper()}))
+    cKey = 'standard-' + country + '-' + code
+
+    if r.get(cKey):
+        result = r.get(cKey)
+        stat_count((len(result) > 0), True)
+    else:
+        result = list(db['global'].find({'country abbreviation': country.upper(),
+                                         'post code': code.upper()}))
+        r.set(cKey, result)
+        stat_count((len(result) > 0), False)
+
     if len(result) < 1:
         content = json.dumps({})        # return empty json string
         isFound = False                # If no results found
@@ -183,10 +210,18 @@ def place_query(country, state, place):
     Place_query returns JSON data if there are matching postcodes for a given
     country abbreviation, state abbreviation, and place/city
     '''
-    result = list(db['global'].find({'country abbreviation': country.upper(),
-                                     'state abbreviation': state.upper(),
-                                     'place name': {'$regex': place, '$options': '-i'}
-                                     }))
+    cKey = "place-" + country.upper() + '-' + state.upper() + '-' + place.upper()
+
+    if (r.get(cKey)):
+        result = r.get(cKey)
+        stat_count((len(result) > 0), True)
+    else:
+        result = list(db['global'].find({'country abbreviation': country.upper(),
+                                         'state abbreviation': state.upper(),
+                                         'place name': {'$regex': place, '$options': '-i'}
+                                         }))
+        stat_count((len(result) > 0), False)
+
     if len(result) < 1:
         content = json.dumps({})   # Empty JSON string
         isFound = False             # We didn't find anything
@@ -214,6 +249,28 @@ def place_query(country, state, place):
             'places': result})
 
         return (isFound, content)   # Return True and JSON results
+
+
+def stat_count(found, cacheHit):
+    '''
+    Add to Redis request counter, overall request numbers
+    as well as unique IP requests, and AJAX vs. other
+    '''
+    r.incr('overall_requests')
+    r.incr('requests_' + request.remote_addr)
+
+    if (request.isXhr):
+        r.incr('requests_ajax')
+
+    if (not found):
+        r.incr('request_notFound')
+
+    if (cacheHit):
+        r.incr('request_cacheHit')
+        response['X-CACHE'] = 'hit'
+    else:
+        r.incr('request_cacheMiss')
+        response['X-CACHE'] = 'miss'
 
 # PRESENT GLOBAL
 ZIP = 'zip'
