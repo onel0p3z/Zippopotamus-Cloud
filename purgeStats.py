@@ -18,16 +18,16 @@ cacheHits = r.get('request.cacheHit')
 cacheMiss = r.get('request.cacheMiss')
 notFound = r.get('request.notFound')
 
-db.stats.insert({'date': dateTime.strftime("%Y-%m-%d"),
-                 'hour': dateTime.hour,
-                 'time': dateTime.strftime("%H:%M"),
-                 'requests': requests,
-                 'hosts': hosts,
-                 'countHosts': hostsCount,
-                 'xhrRequests': xhrRequests,
-                 'cacheHits': cacheHits,
-                 'cacheMisses': cacheMiss,
-                 'notFound': notFound})
+db.reqstats.insert({'date': dateTime.strftime("%Y-%m-%d"),
+                    'hour': dateTime.hour,
+                    'time': dateTime.strftime("%H:%M"),
+                    'requests': requests,
+                    'hosts': hosts,
+                    'countHosts': hostsCount,
+                    'xhrRequests': xhrRequests,
+                    'cacheHits': cacheHits,
+                    'cacheMisses': cacheMiss,
+                    'notFound': notFound})
 
 if (dateTime.hour is 23):
     r.delete('request.hosts', 'request.count', 'request.xhr', 'request.cacheHit', 'request.cacheMiss', 'request.notFound')
