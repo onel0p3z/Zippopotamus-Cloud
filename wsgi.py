@@ -86,7 +86,7 @@ def nearby_zip(country, code):
 
     if (r.get(cKey)):
         stat_count(True, True)
-        return (True, pickle.loads(r.get(cKey)))
+        return (True, r.get(cKey))
     else:
         post = list(db['nearby'].find({'post code': code.upper(),
                                        'country abbreviation': country.upper()}))
@@ -101,7 +101,7 @@ def nearby_zip(country, code):
                         'nearby': nearby[1:]}
             content = json.dumps(response)
             stat_count(True, False)
-            r.set(cKey, response)
+            r.set(cKey, content)
             return (True, content)
 
     content = json.dumps({})
@@ -141,7 +141,7 @@ def nearby_query(lat, lon):
             del places['country']                   # Remove country
             del places['country abbreviation']      # Remove abbrevation
             results.append(places)
-            r.set(cKey, results)
+            r.set(cKey, pickle.dumps(results))
             stat_count(True, False)
         return (True, results)
     else:
@@ -158,7 +158,7 @@ def standard_query(country, code):
 
     if r.get(cKey):
         stat_count(True, True)
-        return (True, pickle.loads(r.get(cKey)))
+        return (True, r.get(cKey))
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'post code': code.upper()}))
@@ -200,7 +200,7 @@ def place_query(country, state, place):
 
     if (r.get(cKey)):
         stat_count(True, True)
-        return (True, pickle.loads(r.get(cKey)))
+        return (True, r.get(cKey))
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'state abbreviation': state.upper(),
