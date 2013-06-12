@@ -151,7 +151,12 @@ def nearby_query(lat, lon):
                                 ('distanceMultiplier', 3959),   # Return values in miles
                                 ('spherical', True),              # Spherical
                                 ('num', 11)]))                  # Results to return
-        for places in nearby['results']:
+        try:
+            del nearby['_id']
+        except:
+            pass
+        for record in nearby['results']:
+            places = record['obj']
             try:
                 del places['_id']
             except:
