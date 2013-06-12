@@ -1,7 +1,6 @@
 from pymongo import Connection
 from pymongo.database import Database
 import redis
-import json
 import datetime
 
 connection = Connection()
@@ -19,7 +18,9 @@ cacheHits = r.get('request.cacheHit')
 cacheMiss = r.get('request.cacheMiss')
 notFound = r.get('request.notFound')
 
-db.stats.insert({'date': datetime.strftime("%Y-%m-%d %H:%M"),
+db.stats.insert({'date': dateTime.strftime("%Y-%m-%d"),
+                 'hour': dateTime.hour,
+                 'time': dateTime.strftime("%H:%M"),
                  'requests': requests,
                  'hosts': hosts,
                  'countHosts': hostsCount,
@@ -27,3 +28,6 @@ db.stats.insert({'date': datetime.strftime("%Y-%m-%d %H:%M"),
                  'cacheHits': cacheHits,
                  'cacheMisses': cacheMiss,
                  'notFound': notFound})
+
+if (dateTime.hour is 23):
+    r.delete('request.hosts', 'request.count', 'request.xhr', 'request.cacheHit', 'request.cacheMiss', 'request.notFound')
