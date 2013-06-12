@@ -82,7 +82,7 @@ def nearby_zip(country, code):
     Looks up nearby postcodes given country and postal code
     Returns results for JSON response
     '''
-    cKey = 'nearby-' + country + '-' + code
+    cKey = 'nearby.' + country.upper() + '.' + code
 
     if (r.get(cKey)):
         post = pickle.loads(r.get(cKey))
@@ -139,7 +139,7 @@ def nearby_query(lat, lon):
     GeoSpatial  Query,
     Given a specific latitude or longitude, this returns the closes 11 zipcodes
     '''
-    cKey = 'nearby-' + lat + '-' + lon
+    cKey = 'nearby.' + lat + '.' + lon
 
     if r.get(cKey):
             nearby = pickle.loads(r.get(cKey))
@@ -180,7 +180,7 @@ def standard_query(country, code):
     Standard_query returns a JSON data if there are matching places, for a
     given country abbreviation and zip code
     '''
-    cKey = 'standard-' + country + '-' + code
+    cKey = 'standard.' + country.upper() + '.' + code
 
     if r.get(cKey):
         result = pickle.loads(r.get(cKey))
@@ -224,7 +224,7 @@ def place_query(country, state, place):
     Place_query returns JSON data if there are matching postcodes for a given
     country abbreviation, state abbreviation, and place/city
     '''
-    cKey = "place-" + country.upper() + '-' + state.upper() + '-' + place.upper()
+    cKey = "place." + country.upper() + '.' + state.upper() + '.' + place.upper()
 
     if (r.get(cKey)):
         result = r.get(cKey)
@@ -270,20 +270,20 @@ def stat_count(found, cacheHit):
     Add to Redis request counter, overall request numbers
     as well as unique IP requests, and AJAX vs. other
     '''
-    r.incr('overall_requests')
-    r.incr('requests_' + request.remote_addr)
+    r.incr('request.count')
+    r.incr('request.' + request.remote_addr)
 
     if (request.is_xhr):
-        r.incr('requests_ajax')
+        r.incr('request.ajax')
 
     if (not found):
-        r.incr('request_notFound')
+        r.incr('request.notFound')
 
     if (cacheHit):
-        r.incr('request_cacheHit')
+        r.incr('request.cacheHit')
         response['X-CACHE'] = 'hit'
     else:
-        r.incr('request_cacheMiss')
+        r.incr('request.cacheMiss')
         response['X-CACHE'] = 'miss'
 
 # PRESENT GLOBAL
