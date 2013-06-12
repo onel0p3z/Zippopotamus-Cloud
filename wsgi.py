@@ -8,7 +8,7 @@ import redis
 
 os.chdir(os.path.dirname(__file__))
 
-r = redis.strictRedis(host='localhost', port=6379, db=0)
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 class static_files():
 
