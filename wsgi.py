@@ -5,6 +5,7 @@ from bson.son import SON
 import json
 import os
 import redis
+import pickle
 
 os.chdir(os.path.dirname(__file__))
 
@@ -84,12 +85,16 @@ def nearby_zip(country, code):
     cKey = 'nearby-' + country + '-' + code
 
     if (r.get(cKey)):
-        post = r.get(cKey)
+        post = pickle.loads(r.get(cKey))
         stat_count(True, True)
     else:
         post = list(db['nearby'].find({'post code': code.upper(),
                                        'country abbreviation': country.upper()}))
-        r.set(cKey, post)
+        try:
+            r.set(cKey, pickle.dumps(post))
+        except:
+            pass
+
         found = (len(post) >= 1)
         stat_count(found, False)
 
@@ -137,7 +142,7 @@ def nearby_query(lat, lon):
     cKey = 'nearby-' + lat + '-' + lon
 
     if r.get(cKey):
-            nearby = r.get(cKey)
+            nearby = pickle.loads(r.get(cKey))
             stat_count(len(nearby['ok'] > 0), True)
     else:
         nearby = db.command(SON([('geoNear', 'nearby'),           # Geospatial search
@@ -145,6 +150,11 @@ def nearby_query(lat, lon):
                                 ('distanceMultiplier', 3959),   # Return values in miles
                                 ('spherical', True),              # Spherical
                                 ('num', 11)]))                  # Results to return
+        try:
+            r.set(cKey, pickle.dumps(nearby))
+        except:
+            pass
+
         stat_count((len(nearby['ok']) > 0), False)
 
     if nearby['ok'] > 0:
@@ -173,12 +183,16 @@ def standard_query(country, code):
     cKey = 'standard-' + country + '-' + code
 
     if r.get(cKey):
-        result = r.get(cKey)
+        result = pickle.loads(r.get(cKey))
         stat_count((len(result) > 0), True)
     else:
         result = list(db['global'].find({'country abbreviation': country.upper(),
                                          'post code': code.upper()}))
-        r.set(cKey, result)
+        try:
+            r.set(cKey, pickle.dumps(result))
+        except:
+            pass
+
         stat_count((len(result) > 0), False)
 
     if len(result) < 1:
@@ -259,7 +273,7 @@ def stat_count(found, cacheHit):
     r.incr('overall_requests')
     r.incr('requests_' + request.remote_addr)
 
-    if (request.isXhr):
+    if (request.is_xhr):
         r.incr('requests_ajax')
 
     if (not found):
